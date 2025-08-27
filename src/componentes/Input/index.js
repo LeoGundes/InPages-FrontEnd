@@ -13,7 +13,7 @@ const Input = styled.input`
 
         &::placeholder {
                 text-align: center;
-                color: #grey;
+                color: #FFF;
                 font-size: 16px;
         }
 `

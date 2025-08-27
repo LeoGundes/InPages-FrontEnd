@@ -9,7 +9,7 @@ const IconesHeaderContainer = styled.ul`
   cursor: pointer;
   gap: 30px;
   margin-left: 50px;
-  margin-right: 50px;
+  margin-right: 160px;
   width: 80px;
 `;
 
