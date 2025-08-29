@@ -11,7 +11,7 @@ const LogoContainer = styled.div`
 
 function Logo() {
     return (
-    <LogoContainer>
+    <LogoContainer >
       <img src={logo} alt='logo InPages' style={{ width: '300px', height: 'auto' }} />
     </LogoContainer>
     )

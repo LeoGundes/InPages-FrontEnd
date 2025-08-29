@@ -1,7 +1,6 @@
-import Header from './componentes/Header';
 import styled from 'styled-components';
-import Pesquisa from './componentes/Pesquisa';
-import TopTres from './componentes/TopTres';
+import Pesquisa from '../componentes/Pesquisa';
+import TopTres from '../componentes/TopTres';
 
 const AppContainer = styled.div`
   width: 100vw;
@@ -9,15 +8,13 @@ const AppContainer = styled.div`
   background-image: linear-gradient(90deg, #002F52 35%, #326589 165%);
 `;
 
-function App() {
+function Home() {
   return (
     <AppContainer>
-      <Header />
       <Pesquisa />
       <TopTres />
     </AppContainer>
   );
 }
 
-export default App;
-
+export default Home;

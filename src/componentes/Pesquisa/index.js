@@ -1,7 +1,9 @@
 import Input from '../Input'
 import styled from 'styled-components';
-import { useState } from 'react';
-import { livros } from './dadosPesquisa'
+import { useEffect, useState } from 'react';
+import { getLivros } from '../../services/livros';
+import { postFavorito } from '../../services/favoritos';
+
 
 
 const PesquisaContainer = styled.section`
@@ -35,9 +37,9 @@ const Resultado = styled.div`
     background-color: #FFF;     /* fundo branco */
     border-radius: 30px;        /* cantos arredondados */
     padding: 16px;              /* espaço interno */
-    margin-bottom: 16px;        /* espaço abaixo do card */
+    margin-bottom: 2px;        /* espaço abaixo do card */
     width: 100%;                /* ocupa largura total do pai */
-    max-width: 500px;           /* mas limita em 500px */
+    max-width: 300px;           /* mas limita em 300px */
 
   .nome {
     margin-bottom: 8px;         /* espaço abaixo do título */
@@ -72,6 +74,20 @@ const Resultado = styled.div`
 function Pesquisa() {
     const [query, setQuery] = useState('');
     const [livrosPesquisados, setlivrosPesquisados] = useState([]);
+    const [livros, setLivros] = useState([]);
+
+    useEffect(() => {
+        fetchLivros();
+    }, [])
+
+    async function fetchLivros() {
+        const livrosDaAPI = await getLivros();
+        setLivros(livrosDaAPI);
+    }
+    
+    async function insertFavorito(id) {
+        await postFavorito(id);
+    }
 
     const handleSearch = () => {
     const texto = query.trim().toLowerCase();
@@ -101,7 +117,7 @@ function Pesquisa() {
             }}
         />
         {livrosPesquisados.map(livro => (
-            <Resultado key={livro.id}>
+            <Resultado onClick={() => insertFavorito(livro.id)} key={livro.id}>
                 <p className="nome">{livro.nome}</p>
             <div className="conteudo">
                 <a href={livro.link} target="_blank" rel="noopener noreferrer">
