@@ -13,14 +13,31 @@ const HeaderContainer = styled.header`
   padding: 0 300px;
 `;
 
+const UsuarioLogado = styled.div`
+  color: #002F52;
+  font-weight: bold;
+  margin-right: 24px;
+  font-size: 1.1em;
+`;
+
 function Header() {
+  // Busca o usuário logado no localStorage
+  const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+
   return (
     <HeaderContainer>
       <Link to="/">
         <Logo />
       </Link>
       <OpcoesHeader />
-      <IconesHeader />
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {usuario && (
+          <UsuarioLogado>
+            Olá, {usuario.nome}!
+          </UsuarioLogado>
+        )}
+        <IconesHeader />
+      </div>
     </HeaderContainer>
   );
 }

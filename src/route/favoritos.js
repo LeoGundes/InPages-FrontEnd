@@ -36,7 +36,7 @@ const FavoritoContainer = styled.div`
 `;
 
 const FavoritoImagem = styled.img`
-    width: 220px;         // largura fixa
+    width: 210px;         // largura fixa
     height: 260px;        // altura fixa  
     border-radius: 8px;
 `;
@@ -57,7 +57,6 @@ const FavoritoImagem = styled.img`
             text-decoration: underline;
         }
     `
-    
 
   function Favoritos() {
     const [favoritos, setFavoritos] = useState([]);

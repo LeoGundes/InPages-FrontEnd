@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './componentes/Header';
 import Categorias from './route/Categorias';
 import Favoritos from './route/favoritos';
+import Login from './route/Login';
+import Cadastro from './route/Cadastro';
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -39,6 +41,8 @@ root.render(
       <Route path='/' element={<Home />} />
       <Route path='/categorias' element={<Categorias />} />
       <Route path='/favoritos' element={<Favoritos />} />
+      <Route path='/login' element={<Login />} />
+      <Route path='/cadastro' element={<Cadastro />} />
     </Routes>
     </BrowserRouter>
   </React.StrictMode>

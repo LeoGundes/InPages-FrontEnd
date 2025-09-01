@@ -32,6 +32,7 @@ const Subtitulo = styled.h3`
 
 const Resultado = styled.div`
     display: flex;              /* usa flexbox */
+    align-items: center;        /* alinha verticalmente no centro */
     flex-direction: column;     /* organiza em coluna (título em cima, conteúdo embaixo) */
     justify-content: center;    /* centraliza verticalmente os itens */
     background-color: #FFF;     /* fundo branco */

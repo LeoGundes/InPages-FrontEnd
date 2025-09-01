@@ -1,6 +1,7 @@
 import perfil from '../../imagens/perfil.svg';
 import Sacola from '../../imagens/sacola.svg';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 
 const icones = [perfil, Sacola];
 
@@ -14,10 +15,19 @@ const IconesHeaderContainer = styled.ul`
 `;
 
 function IconesHeader() {
+  const navigate = useNavigate();
+
+  function handleClick(index) {
+    if (index === 0) {
+      navigate('/login');
+    }
+    // Você pode adicionar outras ações para outros ícones se quiser
+  }
+
   return (
     <IconesHeaderContainer>
       {icones.map((icone, index) => (
-        <li key={index} className="icone">
+        <li key={index} className="icone" onClick={() => handleClick(index)}>
           <img src={icone} alt={`ícone ${index}`} />
         </li>
       ))}
