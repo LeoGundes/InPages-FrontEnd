@@ -22,7 +22,7 @@ InPages é uma plataforma web inspirada no Letterboxd, voltada para amantes de l
 - Node.js (v18 ou superior recomendado)
 - npm (geralmente já vem com o Node)
 
-### Backend
+### Backend (Clone do repositório InPages-ServerSide)
 
 1. Acesse a pasta do backend:
    ```bash
