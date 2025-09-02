@@ -1,14 +1,18 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import Home from './route/Home';
-import reportWebVitals from './reportWebVitals';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { createGlobalStyle } from 'styled-components';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Header from './componentes/Header';
+import Home from './route/Home';
 import Categorias from './route/Categorias';
 import Favoritos from './route/favoritos';
+import Biblioteca from './route/Biblioteca';
+import Reviews from './route/Reviews';
 import Login from './route/Login';
 import Cadastro from './route/Cadastro';
+import Perfil from './route/Perfil';
+import Onboarding from './route/Onboarding';
+import Header from './componentes/Header';
+import RotaProtegida from './componentes/RotaProtegida';
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -16,19 +20,16 @@ const GlobalStyle = createGlobalStyle`
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-li {
-  list-style: none;
-}
-
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+  li {
+    list-style: none;
+  }
 `;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -36,19 +37,28 @@ root.render(
   <React.StrictMode>
     <GlobalStyle />
     <BrowserRouter>
-    <Header />
-    <Routes>
-      <Route path='/' element={<Home />} />
-      <Route path='/categorias' element={<Categorias />} />
-      <Route path='/favoritos' element={<Favoritos />} />
-      <Route path='/login' element={<Login />} />
-      <Route path='/cadastro' element={<Cadastro />} />
-    </Routes>
+      <Routes>
+        <Route path="/" element={<Onboarding />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Cadastro />} />
+        {/* Rotas protegidas com Header */}
+        <Route
+          path="/*"
+          element={
+            <RotaProtegida>
+              <Header />
+              <Routes>
+                <Route path="/home" element={<Home />} />
+                <Route path="/categorias" element={<Categorias />} />
+                <Route path="/favoritos" element={<Favoritos />} />
+                <Route path="/biblioteca" element={<Biblioteca />} />
+                <Route path="/perfil" element={<Perfil />} />
+                <Route path="/reviews" element={<Reviews />} />
+              </Routes>
+            </RotaProtegida>
+          }
+        />
+      </Routes>
     </BrowserRouter>
   </React.StrictMode>
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();

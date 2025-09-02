@@ -1,21 +1,17 @@
 import axios from 'axios';
 
-const favoritosAPI = axios.create({baseURL: 'http://localhost:8000/favoritos'})
+const favoritosAPI = axios.create({ baseURL: 'http://localhost:8000/usuarios' });
 
-async function getFavoritos() {
-    const response = await favoritosAPI.get('/');
-    return response.data;
-}
-
-async function postFavorito(id) {
-    await favoritosAPI.post(`/${id}`);
-}
-async function deleteFavorito(id) {
-    await favoritosAPI.delete(`/${id}`);
+export async function getFavoritos(email) {
+  const response = await favoritosAPI.get(`/${email}/favoritos`);
+  return response.data;
 }
 
-export {
-    getFavoritos,
-    postFavorito,
-    deleteFavorito
+export async function postFavorito(email, id) {
+  return favoritosAPI.post(`/${email}/favoritos/${id}`);
 }
+export async function deleteFavorito(email, id) {
+  return favoritosAPI.delete(`/${email}/favoritos/${id}`);
+}
+
+

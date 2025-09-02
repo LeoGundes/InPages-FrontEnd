@@ -65,11 +65,13 @@ const Botao = styled.button`
 `;
 
 const Descricao = styled.p`
+color: #002F52;
     font-size: 14px;
     color: #666;
 `;
 
 const Subtitulo = styled.h4`
+color: #002F52;
     font-size: 16px;
     margin: 8px 0;
 `;

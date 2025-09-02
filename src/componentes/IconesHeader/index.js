@@ -18,10 +18,15 @@ function IconesHeader() {
   const navigate = useNavigate();
 
   function handleClick(index) {
+    const usuario = localStorage.getItem('usuarioLogado');
     if (index === 0) {
-      navigate('/login');
+      if (usuario) {
+        navigate('/perfil');
+      } else {
+        navigate('/login');
+      }
     }
-    // Você pode adicionar outras ações para outros ícones se quiser
+    // ...outras ações para outros ícones...
   }
 
   return (

@@ -1,8 +1,6 @@
-import styled from  'styled-components';
-import React, { useState } from 'react';
-import { loginUsuario } from '../services/usuarios';
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import logoInPages from '../imagens/logo.svg';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -63,19 +61,19 @@ const Button = styled.button`
   }
 `;
 
-const Logo = styled.img`
-  width: 200px;
-  margin-bottom: 0px;
-`;
-
-const LinkCadastro = styled.a`
-  color: #002F52;
-  text-decoration: none;
+const SairButton = styled.button`
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
   font-weight: bold;
-  transition: color 0.2s;
+  font-size: 1em;
+  margin-top: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
   &:hover {
-    color: #326589;
-    text-decoration: underline;
+    background: #c0392b;
   }
 `;
 
@@ -85,44 +83,58 @@ const Text = styled.p`
   font-size: 1em;
 `;
 
-function Login() {
+function Perfil() {
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
   const [mensagem, setMensagem] = useState('');
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
-  e.preventDefault();
-  try {
-    const response = await loginUsuario({ email, senha });
-    localStorage.setItem('usuarioLogado', JSON.stringify({
-      nome: response.data.nome,
-      email: response.data.email
-    }));
-    setMensagem('Login realizado com sucesso!');
-    setTimeout(() => {
-      navigate('/home');
-    }, 1000);
-  } catch (error) {
-    setMensagem(error.response?.data || 'Erro ao fazer login');
+  useEffect(() => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+      setNome(usuario.nome);
+      setEmail(usuario.email);
+    }
+  }, []);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    localStorage.setItem('usuarioLogado', JSON.stringify({ nome, email }));
+    setMensagem('Perfil atualizado com sucesso!');
   }
-}
+
+  function handleSair() {
+    localStorage.removeItem('usuarioLogado');
+    navigate('/login');
+  }
 
   return (
     <Container>
       <Form onSubmit={handleSubmit}>
-        <Logo src={logoInPages} alt="Logo InPages" />
-        <Title>Login</Title>
-        <Input type="email" placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} required />
-        <Input type="password" placeholder="Senha" value={senha} onChange={e => setSenha(e.target.value)} required />
-        <Button type="submit">Entrar</Button>
+        <Title>Meu Perfil</Title>
+        <Input
+          type="text"
+          placeholder="Nome"
+          value={nome}
+          onChange={e => setNome(e.target.value)}
+          required
+        />
+        <Input
+          type="email"
+          placeholder="E-mail"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          disabled
+        />
+        <Button type="submit">Salvar</Button>
         {mensagem && <Text>{mensagem}</Text>}
-        <Text>
-          Não tem conta? <LinkCadastro href="/cadastro">Cadastre-se</LinkCadastro>
-        </Text>
+        <SairButton type="button" onClick={handleSair}>
+          Sair
+        </SairButton>
       </Form>
     </Container>
   );
 }
 
-export default Login;
+export default Perfil;

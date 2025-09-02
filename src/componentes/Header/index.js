@@ -3,6 +3,7 @@ import OpcoesHeader from '../OpcoesHeader';
 import IconesHeader from '../IconesHeader';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
 const HeaderContainer = styled.header`
   display: flex;
@@ -20,13 +21,36 @@ const UsuarioLogado = styled.div`
   font-size: 1.1em;
 `;
 
+
+
 function Header() {
-  // Busca o usuário logado no localStorage
-  const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+  const [usuario, setUsuario] = useState(() => {
+    return JSON.parse(localStorage.getItem('usuarioLogado'));
+  });
+
+  useEffect(() => {
+    function atualizarUsuario() {
+      setUsuario(JSON.parse(localStorage.getItem('usuarioLogado')));
+    }
+    window.addEventListener('storage', atualizarUsuario);
+    return () => window.removeEventListener('storage', atualizarUsuario);
+  }, []);
+
+  // Também atualiza ao voltar do perfil (navegação SPA)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const atual = JSON.parse(localStorage.getItem('usuarioLogado'));
+      setUsuario(prev => {
+        if (!prev || !atual || prev.nome !== atual.nome) return atual;
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <HeaderContainer>
-      <Link to="/">
+      <Link to="/home">
         <Logo />
       </Link>
       <OpcoesHeader />

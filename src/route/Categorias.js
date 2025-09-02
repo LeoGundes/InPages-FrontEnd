@@ -1,4 +1,7 @@
 import styled from 'styled-components';
+import { useState } from 'react';
+import { buscarLivrosPorCategoriaGoogle } from '../services/categoriasGoogle';
+import { getFavoritosGoogle, addFavoritoGoogle } from '../services/favoritosGoogle';
 
 const AppContainer = styled.div`
   width: 100vw;
@@ -49,10 +52,75 @@ const categorias = [
   'Cloud'
 ];
 
+
+const LivroCard = styled.div`
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 16px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 12px;
+`;
+const LivroImg = styled.img`
+  width: 120px;
+  height: 170px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 10px;
+`;
+const LivroNome = styled.h3`
+  color: #002F52;
+  font-size: 1.1em;
+  margin: 0 0 8px 0;
+  text-align: center;
+`;
+const BotaoFavoritar = styled.button`
+  background: linear-gradient(90deg, #002F52 60%, #FE9900 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: bold;
+  margin-top: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: background 0.2s, transform 0.2s;
+  &:hover {
+    background: linear-gradient(90deg, #FE9900 60%, #002F52 100%);
+    transform: translateY(-2px) scale(1.04);
+  }
+`;
+
 function Categorias() {
-  function handleCategoriaClick(categoria) {
-    // Aqui você pode navegar para uma página de livros da categoria, ou filtrar livros, etc.
-    alert(`Você clicou na categoria: ${categoria}`);
+  const [livrosGoogle, setLivrosGoogle] = useState([]);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState('');
+  const [mensagem, setMensagem] = useState('');
+
+  async function handleCategoriaClick(categoria) {
+    setCategoriaSelecionada(categoria);
+    setMensagem('Buscando livros...');
+    const livros = await buscarLivrosPorCategoriaGoogle(categoria);
+    setLivrosGoogle(livros);
+    setMensagem('');
+  }
+
+  function favoritarGoogle(livro) {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuario) {
+      setMensagem('Faça login para favoritar.');
+      return;
+    }
+    addFavoritoGoogle(usuario.email, {
+      id: livro.id,
+      title: livro.volumeInfo.title,
+      thumbnail: livro.volumeInfo.imageLinks?.thumbnail
+    });
+    setMensagem('Livro adicionado aos favoritos!');
+    setTimeout(() => setMensagem(''), 1200);
   }
 
   return (
@@ -65,6 +133,25 @@ function Categorias() {
           </CategoriaItem>
         ))}
       </ListaCategorias>
+      {categoriaSelecionada && (
+        <>
+          <h2 style={{ color: '#002F52', margin: '32px 0 18px 0' }}>Livros de {categoriaSelecionada}</h2>
+          {mensagem && <p>{mensagem}</p>}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+            {livrosGoogle.map(livro => (
+              <LivroCard key={livro.id}>
+                {livro.volumeInfo.imageLinks?.thumbnail && (
+                  <LivroImg src={livro.volumeInfo.imageLinks.thumbnail} alt={livro.volumeInfo.title} />
+                )}
+                <LivroNome>{livro.volumeInfo.title}</LivroNome>
+                <BotaoFavoritar onClick={() => favoritarGoogle(livro)}>
+                  Favoritar
+                </BotaoFavoritar>
+              </LivroCard>
+            ))}
+          </div>
+        </>
+      )}
     </AppContainer>
   );
 }

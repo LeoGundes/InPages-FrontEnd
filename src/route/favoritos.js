@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components'
 import { deleteFavorito, getFavoritos } from '../services/favoritos';
+import { getFavoritosGoogle, removeFavoritoGoogle } from '../services/favoritosGoogle';
 import livroCrackCode from '../imagens/LivroCrackCode.jpg'
 
   const AppContainer = styled.div `
@@ -60,35 +61,61 @@ const FavoritoImagem = styled.img`
 
   function Favoritos() {
     const [favoritos, setFavoritos] = useState([]);
-
-    async function fetchFavoritos() {
-        const favoritosDaApi = await getFavoritos();
-        setFavoritos(favoritosDaApi);
-    }
-
-    async function deletarFavorito(id) {
-        await deleteFavorito(id);
-        setFavoritos(favoritos.filter(favorito => favorito.id !== id));
-    }
+    const [favoritosGoogle, setFavoritosGoogle] = useState([]);
 
     useEffect(() => {
+        async function fetchFavoritos() {
+            const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+            if (usuario && usuario.email) {
+                const favoritosDoUsuario = await getFavoritos(usuario.email);
+                setFavoritos(favoritosDoUsuario);
+                setFavoritosGoogle(getFavoritosGoogle(usuario.email));
+            }
+        }
         fetchFavoritos();
     }, []);
+
+    async function deletarFavorito(id) {
+      const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+      await deleteFavorito(usuario.email, id);
+      setFavoritos(favoritos.filter(favorito => favorito.id !== id));
+    }
 
     return (
         <AppContainer>
             <Titulo>Meus Favoritos</Titulo>
-            <ListaFavoritos>
-                {favoritos.map(favorito => (
-                    <FavoritoContainer key={favorito.id}>
-                        <FavoritoNome>{favorito.nome}</FavoritoNome>
-                        <FavoritoImagem src={favorito.src} alt={favorito.nome} />
-                        <FavoritoRemover onClick={() => deletarFavorito(favorito.id)}>
-                            Remover dos Favoritos
-                        </FavoritoRemover>
-                    </FavoritoContainer>
-                ))}
-            </ListaFavoritos>
+            {favoritos.length === 0 && favoritosGoogle.length === 0 ? (
+                <p style={{ color: '#1cd6aeff', textAlign: 'center', fontSize: '1.1em' }}>Você ainda não tem favoritos.</p>
+            ) : (
+                <>
+                <ListaFavoritos>
+                    {favoritos.map(favorito => (
+                        <FavoritoContainer key={favorito.id}>
+                            <FavoritoNome>{favorito.nome}</FavoritoNome>
+                            <FavoritoImagem src={favorito.src} alt={favorito.nome} />
+                            <FavoritoRemover onClick={() => deletarFavorito(favorito.id)}>
+                                            Remover dos Favoritos
+                            </FavoritoRemover>
+                        </FavoritoContainer>
+                    ))}
+                </ListaFavoritos>
+                <ListaFavoritos>
+                    {favoritosGoogle.map(fav => (
+                        <FavoritoContainer key={fav.id}>
+                            <FavoritoNome>{fav.title}</FavoritoNome>
+                            {fav.thumbnail && <FavoritoImagem src={fav.thumbnail} alt={fav.title} />}
+                            <FavoritoRemover onClick={() => {
+                                const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+                                removeFavoritoGoogle(usuario.email, fav.id);
+                                setFavoritosGoogle(getFavoritosGoogle(usuario.email));
+                            }}>
+                                Remover dos Favoritos
+                            </FavoritoRemover>
+                        </FavoritoContainer>
+                    ))}
+                </ListaFavoritos>
+                </>
+            )}
         </AppContainer>
     );
 }
