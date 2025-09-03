@@ -4,7 +4,23 @@ import { useEffect, useState } from 'react';
 import { getLivros } from '../../services/livros';
 import { buscarLivrosGoogle } from '../../services/googleBooks';
 import { postFavorito } from '../../services/favoritos';
+import { adicionarLivroLido } from '../../services/livrosLidos';
+import { addFavoritoGoogle } from '../../services/favoritosGoogle';
 
+// Spinner animado
+const Spinner = styled.div`
+  border: 3px solid #e0e0e0;
+  border-top: 3px solid #1cd6ae;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  animation: spin 0.8s linear infinite;
+  margin-left: 10px;
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
 
 // Animação de check
 const checkPop = keyframes`
@@ -29,6 +45,23 @@ const CheckAnimado = styled.div`
   font-size: 1.7em;
   box-shadow: 0 2px 8px rgba(0,0,0,0.13);
   animation: ${checkPop} 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+`;
+
+const BadgeBiblioteca = styled.div`
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: #4CAF50;
+  color: #fff;
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 0.75em;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 2px;
 `;
 
 const Titulo = styled.h2`
@@ -156,10 +189,98 @@ function Pesquisa() {
   const [livros, setLivros] = useState([]);
   const [googleLivros, setGoogleLivros] = useState([]);
   const [adicionado, setAdicionado] = useState(null); // id do livro adicionado
+  const [loading, setLoading] = useState(false);
+  const [livrosNaBiblioteca, setLivrosNaBiblioteca] = useState(new Set());
+
+  // Função para verificar se um livro está na biblioteca
+  const verificarSeEstaNaBiblioteca = () => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+      const bibliotecaKey = `biblioteca_${usuario.email}`;
+      const biblioteca = JSON.parse(localStorage.getItem(bibliotecaKey)) || [];
+      const idsNaBiblioteca = new Set(biblioteca.map(livro => livro.id));
+      setLivrosNaBiblioteca(idsNaBiblioteca);
+    }
+  };
+
+  // Handler para favoritar livro do Google Books
+  const handleFavoritarGoogle = async (item) => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    const livroFavorito = {
+      id: item.id,
+      title: item.volumeInfo.title,
+      authors: item.volumeInfo.authors,
+      thumbnail: item.volumeInfo.imageLinks?.thumbnail,
+      usuario: usuario.email
+    };
+    
+    try {
+      addFavoritoGoogle(usuario.email, livroFavorito);
+      setAdicionado(item.id);
+      setTimeout(() => setAdicionado(null), 1200);
+      alert(`"${item.volumeInfo.title}" adicionado aos favoritos!`);
+    } catch (error) {
+      alert('Erro ao adicionar favorito. Tente novamente.');
+      console.error('Erro:', error);
+    }
+  };
+
+  // Handler para review de livro do Google Books
+  const handleReviewLivro = (info) => {
+    localStorage.setItem('livroParaReview', JSON.stringify({
+      id: info.industryIdentifiers?.[0]?.identifier || info.title,
+      title: info.title,
+      authors: info.authors,
+      thumbnail: info.imageLinks?.thumbnail
+    }));
+    window.location.href = '/reviews';
+  };
+
+  // Handler para salvar livro na biblioteca (não lido)
+  const handleSalvarNaBiblioteca = async (info) => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    const livroParaSalvar = {
+      id: info.industryIdentifiers?.[0]?.identifier || info.title,
+      title: info.title,
+      authors: info.authors,
+      thumbnail: info.imageLinks?.thumbnail,
+      usuario: usuario.email,
+      lido: false // Marca como não lido inicialmente
+    };
+    
+    try {
+      // Salva na biblioteca do usuário no localStorage
+      const bibliotecaKey = `biblioteca_${usuario.email}`;
+      const biblioteca = JSON.parse(localStorage.getItem(bibliotecaKey)) || [];
+      
+      // Verifica se o livro já está na biblioteca
+      if (biblioteca.find(livro => livro.id === livroParaSalvar.id)) {
+        alert('Este livro já está na sua biblioteca!');
+        return;
+      }
+      
+      biblioteca.push(livroParaSalvar);
+      localStorage.setItem(bibliotecaKey, JSON.stringify(biblioteca));
+      
+      // Atualiza o estado para mostrar que o livro está na biblioteca
+      setLivrosNaBiblioteca(prev => new Set([...prev, livroParaSalvar.id]));
+      
+      alert(`"${info.title}" salvo na biblioteca!`);
+    } catch (error) {
+      alert('Erro ao salvar livro na biblioteca. Tente novamente.');
+      console.error('Erro:', error);
+    }
+  };
 
   useEffect(() => {
     fetchLivros();
+    verificarSeEstaNaBiblioteca();
   }, []);
+
+  useEffect(() => {
+    // Verifica novamente a biblioteca quando os resultados do Google mudam
+    verificarSeEstaNaBiblioteca();
+  }, [googleLivros]);
 
   async function fetchLivros() {
     const livrosDaAPI = await getLivros();
@@ -191,13 +312,18 @@ function Pesquisa() {
       setGoogleLivros([]);
       return;
     }
-    const livrosFiltrados = livros.filter(livro =>
-      livro.nome.toLowerCase().includes(texto)
-    );
-    setlivrosPesquisados(livrosFiltrados);
-    // Busca Google Books
-    const googleResults = await buscarLivrosGoogle(texto);
-    setGoogleLivros(googleResults);
+    setLoading(true);
+    try {
+      const livrosFiltrados = livros.filter(livro =>
+        livro.nome.toLowerCase().includes(texto)
+      );
+      setlivrosPesquisados(livrosFiltrados);
+      // Busca Google Books
+      const googleResults = await buscarLivrosGoogle({ termo: texto });
+      setGoogleLivros(googleResults);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -220,46 +346,77 @@ function Pesquisa() {
           }}
           style={{ paddingLeft: 40 }}
         />
+        {loading && <Spinner title="Procurando..." />}
       </InputWrapper>
-      {/* Resultados locais */}
-      {livrosPesquisados.map(livro => (
-        <div key={livro.id} style={{ position: 'relative', width: 260 }}>
-          {adicionado === livro.id && (
-            <CheckAnimado title="Adicionado aos favoritos">✔</CheckAnimado>
-          )}
-          <Resultado onClick={() => insertFavorito(livro.id)}>
-            <div className="imagem-container">
-              <span className="nome">{livro.nome}</span>
-              <a href={livro.link} target="_blank" rel="noopener noreferrer">
-                <img src={livro.src} alt={livro.nome} />
-              </a>
+          {/* Resultados locais */}
+          {livrosPesquisados.map(livro => (
+            <div key={livro.id} style={{ position: 'relative', width: 260 }}>
+              {adicionado === livro.id && (
+                <CheckAnimado title="Adicionado aos favoritos">✔</CheckAnimado>
+              )}
+              <Resultado onClick={() => insertFavorito(livro.id)}>
+                <div className="imagem-container">
+                  <span className="nome">{livro.nome}</span>
+                  <a href={livro.link} target="_blank" rel="noopener noreferrer">
+                    <img src={livro.src} alt={livro.nome} />
+                  </a>
+                </div>
+                <div className="conteudo">
+                  <p className="review">{livro.Review}</p>
+                </div>
+              </Resultado>
             </div>
-            <div className="conteudo">
-              <p className="review">{livro.Review}</p>
-            </div>
-          </Resultado>
-        </div>
-      ))}
-      {/* Resultados Google Books */}
-      {googleLivros.map(item => {
-        const info = item.volumeInfo;
-        return (
-          <div key={item.id} style={{ position: 'relative', width: 260 }}>
-            <Resultado as="a" href={info.infoLink} target="_blank" rel="noopener noreferrer">
-              <div className="imagem-container">
-                <span className="nome">{info.title}</span>
-                {info.imageLinks?.thumbnail && (
-                  <img src={info.imageLinks.thumbnail} alt={info.title} />
+          ))}
+          {/* Resultados Google Books */}
+          {googleLivros.map(item => {
+            const info = item.volumeInfo;
+            const livroId = item.id;
+            const estaNaBiblioteca = livrosNaBiblioteca.has(livroId);
+            
+            return (
+              <div key={item.id} style={{ position: 'relative', width: 260 }}>
+                {adicionado === item.id && (
+                  <CheckAnimado title="Adicionado aos favoritos">✔</CheckAnimado>
                 )}
+                {estaNaBiblioteca && (
+                  <BadgeBiblioteca title="Livro salvo na biblioteca">
+                    📚 Na biblioteca
+                  </BadgeBiblioteca>
+                )}
+                <Resultado>
+                  <div className="imagem-container">
+                    <span className="nome">{info.title}</span>
+                    {info.imageLinks?.thumbnail && (
+                      <img src={info.imageLinks.thumbnail} alt={info.title} />
+                    )}
+                  </div>
+                  <div className="conteudo">
+                    <p className="review">{info.authors?.join(', ') || ''}</p>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => handleFavoritarGoogle(item)} style={{ background: '#1cd6ae', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.85em' }}>❤️ Favoritar</button>
+                    <button 
+                      onClick={() => handleSalvarNaBiblioteca(info)} 
+                      style={{ 
+                        background: estaNaBiblioteca ? '#9E9E9E' : '#4CAF50', 
+                        color: '#fff', 
+                        border: 'none', 
+                        borderRadius: 6, 
+                        padding: '3px 8px', 
+                        cursor: estaNaBiblioteca ? 'not-allowed' : 'pointer', 
+                        fontSize: '0.85em' 
+                      }}
+                      disabled={estaNaBiblioteca}
+                    >
+                      📚 {estaNaBiblioteca ? 'Salvo' : 'Salvar'}
+                    </button>
+                    <button onClick={() => handleReviewLivro(info)} style={{ background: '#326589', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.85em' }}>✍️ Review</button>
+                  </div>
+                </Resultado>
               </div>
-              <div className="conteudo">
-                <p className="review">{info.authors?.join(', ') || ''}</p>
-              </div>
-            </Resultado>
-          </div>
-        );
-      })}
-    </PesquisaContainer>
+            );
+          })}
+        </PesquisaContainer>
   );
 }
 
