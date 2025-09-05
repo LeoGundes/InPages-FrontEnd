@@ -2,6 +2,7 @@ import perfil from '../../imagens/perfil.svg';
 import Sacola from '../../imagens/sacola.svg';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { media } from '../../styles/breakpoints';
 
 const icones = [perfil, Sacola];
 
@@ -9,9 +10,48 @@ const IconesHeaderContainer = styled.ul`
   display: flex;
   cursor: pointer;
   gap: 30px;
-  margin-left: 50px;
-  margin-right: 160px;
-  width: 80px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  align-items: center;
+  
+  ${media.tablet} {
+    gap: 20px;
+  }
+  
+  ${media.mobile} {
+    gap: 15px;
+  }
+`;
+
+const IconeItem = styled.li`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: #f0f0f0;
+    transform: scale(1.1);
+  }
+  
+  img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    
+    ${media.tablet} {
+      width: 36px;
+      height: 36px;
+    }
+    
+    ${media.mobile} {
+      width: 32px;
+      height: 32px;
+    }
+  }
 `;
 
 function IconesHeader() {
@@ -32,9 +72,9 @@ function IconesHeader() {
   return (
     <IconesHeaderContainer>
       {icones.map((icone, index) => (
-        <li key={index} className="icone" onClick={() => handleClick(index)}>
+        <IconeItem key={index} onClick={() => handleClick(index)}>
           <img src={icone} alt={`ícone ${index}`} />
-        </li>
+        </IconeItem>
       ))}
     </IconesHeaderContainer>
   );

@@ -3,9 +3,9 @@ import Input from '../Input';
 import { useEffect, useState } from 'react';
 import { getLivros } from '../../services/livros';
 import { buscarLivrosGoogle } from '../../services/googleBooks';
-import { postFavorito } from '../../services/favoritos';
+import { postFavorito, getFavoritos } from '../../services/favoritos';
 import { adicionarLivroLido } from '../../services/livrosLidos';
-import { addFavoritoGoogle } from '../../services/favoritosGoogle';
+import { addFavoritoGoogle, getFavoritosGoogle } from '../../services/favoritosGoogle';
 
 // Spinner animado
 const Spinner = styled.div`
@@ -191,6 +191,8 @@ function Pesquisa() {
   const [adicionado, setAdicionado] = useState(null); // id do livro adicionado
   const [loading, setLoading] = useState(false);
   const [livrosNaBiblioteca, setLivrosNaBiblioteca] = useState(new Set());
+  const [favoritosLocais, setFavoritosLocais] = useState(new Set());
+  const [favoritosGoogle, setFavoritosGoogle] = useState(new Set());
 
   // Função para verificar se um livro está na biblioteca
   const verificarSeEstaNaBiblioteca = () => {
@@ -203,9 +205,41 @@ function Pesquisa() {
     }
   };
 
+  // Função para carregar favoritos locais e do Google
+  const carregarFavoritos = async () => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+      try {
+        // Carregar favoritos locais
+        const favoritosLocaisData = await getFavoritos(usuario.email);
+        const idsFavoritosLocais = new Set(favoritosLocaisData.map(fav => fav.id));
+        setFavoritosLocais(idsFavoritosLocais);
+
+        // Carregar favoritos do Google
+        const favoritosGoogleData = getFavoritosGoogle(usuario.email);
+        const idsFavoritosGoogle = new Set(favoritosGoogleData.map(fav => fav.id));
+        setFavoritosGoogle(idsFavoritosGoogle);
+      } catch (error) {
+        console.error('Erro ao carregar favoritos:', error);
+      }
+    }
+  };
+
   // Handler para favoritar livro do Google Books
   const handleFavoritarGoogle = async (item) => {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    
+    // Verifica se já está favoritado
+    if (favoritosGoogle.has(item.id)) {
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'warning',
+          message: 'Este livro já está nos seus favoritos!'
+        });
+      }
+      return;
+    }
+    
     const livroFavorito = {
       id: item.id,
       title: item.volumeInfo.title,
@@ -216,11 +250,26 @@ function Pesquisa() {
     
     try {
       addFavoritoGoogle(usuario.email, livroFavorito);
+      
+      // Atualiza o estado local
+      setFavoritosGoogle(prev => new Set([...prev, item.id]));
+      
       setAdicionado(item.id);
       setTimeout(() => setAdicionado(null), 1200);
-      alert(`"${item.volumeInfo.title}" adicionado aos favoritos!`);
+      
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: `"${item.volumeInfo.title}" adicionado aos favoritos!`
+        });
+      }
     } catch (error) {
-      alert('Erro ao adicionar favorito. Tente novamente.');
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'error',
+          message: 'Erro ao adicionar favorito. Tente novamente.'
+        });
+      }
       console.error('Erro:', error);
     }
   };
@@ -237,10 +286,10 @@ function Pesquisa() {
   };
 
   // Handler para salvar livro na biblioteca (não lido)
-  const handleSalvarNaBiblioteca = async (info) => {
+  const handleSalvarNaBiblioteca = async (info, livroId) => {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     const livroParaSalvar = {
-      id: info.industryIdentifiers?.[0]?.identifier || info.title,
+      id: livroId, // Usa o mesmo ID que é usado para verificar o estado
       title: info.title,
       authors: info.authors,
       thumbnail: info.imageLinks?.thumbnail,
@@ -255,7 +304,12 @@ function Pesquisa() {
       
       // Verifica se o livro já está na biblioteca
       if (biblioteca.find(livro => livro.id === livroParaSalvar.id)) {
-        alert('Este livro já está na sua biblioteca!');
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'warning',
+            message: 'Este livro já está na sua biblioteca!'
+          });
+        }
         return;
       }
       
@@ -265,9 +319,19 @@ function Pesquisa() {
       // Atualiza o estado para mostrar que o livro está na biblioteca
       setLivrosNaBiblioteca(prev => new Set([...prev, livroParaSalvar.id]));
       
-      alert(`"${info.title}" salvo na biblioteca!`);
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: `"${info.title}" salvo na biblioteca!`
+        });
+      }
     } catch (error) {
-      alert('Erro ao salvar livro na biblioteca. Tente novamente.');
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'error',
+          message: 'Erro ao salvar livro na biblioteca. Tente novamente.'
+        });
+      }
       console.error('Erro:', error);
     }
   };
@@ -275,6 +339,7 @@ function Pesquisa() {
   useEffect(() => {
     fetchLivros();
     verificarSeEstaNaBiblioteca();
+    carregarFavoritos();
   }, []);
 
   useEffect(() => {
@@ -290,17 +355,53 @@ function Pesquisa() {
 
   async function insertFavorito(id) {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    
+    // Verifica se já está favoritado
+    if (favoritosLocais.has(id)) {
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'warning',
+          message: 'Este livro já está nos seus favoritos!'
+        });
+      }
+      return;
+    }
+    
     try {
       await postFavorito(usuario.email, id);
+      
+      // Atualiza o estado local
+      setFavoritosLocais(prev => new Set([...prev, id]));
+      
       setAdicionado(id);
       setTimeout(() => setAdicionado(null), 1200);
+      
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: 'Livro adicionado aos favoritos!'
+        });
+      }
     } catch (error) {
       if (error.response && error.response.status === 409) {
+        // Se o backend retornou que já existe, atualiza o estado local
+        setFavoritosLocais(prev => new Set([...prev, id]));
         setAdicionado(id);
         setTimeout(() => setAdicionado(null), 1200);
-        // alert('Este livro já está nos seus favoritos!');
+        
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'warning',
+            message: 'Este livro já está nos seus favoritos!'
+          });
+        }
       } else {
-        alert('Erro ao adicionar favorito');
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'error',
+            message: 'Erro ao adicionar favorito'
+          });
+        }
       }
     }
   }
@@ -328,8 +429,8 @@ function Pesquisa() {
 
   return (
     <PesquisaContainer>
-      <Titulo>Encontre os melhores livros de tecnologia</Titulo>
-      <Subtitulo>Pesquise pelo livro que você deseja</Subtitulo>
+      <Titulo>Descubra seu próximo livro favorito</Titulo>
+        <Subtitulo>Explore, pesquise e encontre livros incríveis</Subtitulo>
       <InputWrapper>
         <IconeBusca>
           <span role="img" aria-label="Buscar">🔍</span>
@@ -349,29 +450,51 @@ function Pesquisa() {
         {loading && <Spinner title="Procurando..." />}
       </InputWrapper>
           {/* Resultados locais */}
-          {livrosPesquisados.map(livro => (
-            <div key={livro.id} style={{ position: 'relative', width: 260 }}>
-              {adicionado === livro.id && (
-                <CheckAnimado title="Adicionado aos favoritos">✔</CheckAnimado>
-              )}
-              <Resultado onClick={() => insertFavorito(livro.id)}>
-                <div className="imagem-container">
-                  <span className="nome">{livro.nome}</span>
-                  <a href={livro.link} target="_blank" rel="noopener noreferrer">
-                    <img src={livro.src} alt={livro.nome} />
-                  </a>
-                </div>
-                <div className="conteudo">
-                  <p className="review">{livro.Review}</p>
-                </div>
-              </Resultado>
-            </div>
-          ))}
+          {livrosPesquisados.map(livro => {
+            const jaFavoritado = favoritosLocais.has(livro.id);
+            return (
+              <div key={livro.id} style={{ position: 'relative', width: 260 }}>
+                {adicionado === livro.id && (
+                  <CheckAnimado title="Adicionado aos favoritos">✔</CheckAnimado>
+                )}
+                <Resultado 
+                  onClick={() => !jaFavoritado && insertFavorito(livro.id)}
+                  style={{ cursor: jaFavoritado ? 'default' : 'pointer', opacity: jaFavoritado ? 0.7 : 1 }}
+                >
+                  <div className="imagem-container">
+                    <span className="nome">{livro.nome}</span>
+                    <a href={livro.link} target="_blank" rel="noopener noreferrer">
+                      <img src={livro.src} alt={livro.nome} />
+                    </a>
+                    {jaFavoritado && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '8px', 
+                        right: '8px', 
+                        background: '#ff6b6b', 
+                        color: '#fff', 
+                        borderRadius: '12px', 
+                        padding: '4px 8px', 
+                        fontSize: '0.75em',
+                        fontWeight: 'bold'
+                      }}>
+                        ❤️ Favoritado
+                      </div>
+                    )}
+                  </div>
+                  <div className="conteudo">
+                    <p className="review">{livro.Review}</p>
+                  </div>
+                </Resultado>
+              </div>
+            );
+          })}
           {/* Resultados Google Books */}
           {googleLivros.map(item => {
             const info = item.volumeInfo;
             const livroId = item.id;
             const estaNaBiblioteca = livrosNaBiblioteca.has(livroId);
+            const jaFavoritado = favoritosGoogle.has(livroId);
             
             return (
               <div key={item.id} style={{ position: 'relative', width: 260 }}>
@@ -394,9 +517,24 @@ function Pesquisa() {
                     <p className="review">{info.authors?.join(', ') || ''}</p>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                    <button onClick={() => handleFavoritarGoogle(item)} style={{ background: '#1cd6ae', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.85em' }}>❤️ Favoritar</button>
                     <button 
-                      onClick={() => handleSalvarNaBiblioteca(info)} 
+                      onClick={() => !jaFavoritado && handleFavoritarGoogle(item)} 
+                      style={{ 
+                        background: jaFavoritado ? '#ff6b6b' : '#1cd6ae', 
+                        color: '#fff', 
+                        border: 'none', 
+                        borderRadius: 6, 
+                        padding: '3px 8px', 
+                        cursor: jaFavoritado ? 'not-allowed' : 'pointer', 
+                        fontSize: '0.85em',
+                        opacity: jaFavoritado ? 0.7 : 1
+                      }}
+                      disabled={jaFavoritado}
+                    >
+                      {jaFavoritado ? '❤️ Favoritado' : '❤️ Favoritar'}
+                    </button>
+                    <button 
+                      onClick={() => handleSalvarNaBiblioteca(info, livroId)} 
                       style={{ 
                         background: estaNaBiblioteca ? '#9E9E9E' : '#4CAF50', 
                         color: '#fff', 

@@ -119,8 +119,25 @@ const FavoritoImagem = styled.img`
 
     async function deletarFavorito(id) {
       const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-      await deleteFavorito(usuario.email, id);
-      setFavoritos(favoritos.filter(favorito => favorito.id !== id));
+      try {
+        await deleteFavorito(usuario.email, id);
+        setFavoritos(favoritos.filter(favorito => favorito.id !== id));
+        
+        if (window.showNotification) {
+            window.showNotification({
+                type: 'success',
+                message: 'Livro removido dos favoritos!'
+            });
+        }
+      } catch (error) {
+        console.error('Erro ao remover favorito:', error);
+        if (window.showNotification) {
+            window.showNotification({
+                type: 'error',
+                message: 'Erro ao remover favorito. Tente novamente.'
+            });
+        }
+      }
     }
 
     function salvarNaBiblioteca(livro, isGoogle = false) {
@@ -147,7 +164,12 @@ const FavoritoImagem = styled.img`
         
         // Verifica se o livro já está na biblioteca
         if (biblioteca.find(l => l.id === livroParaSalvar.id)) {
-            alert('Este livro já está na sua biblioteca!');
+            if (window.showNotification) {
+                window.showNotification({
+                    type: 'warning',
+                    message: 'Este livro já está na sua biblioteca!'
+                });
+            }
             return;
         }
         
@@ -157,13 +179,35 @@ const FavoritoImagem = styled.img`
         // Atualiza o estado para mostrar que o livro está na biblioteca
         setLivrosNaBiblioteca(prev => new Set([...prev, livroParaSalvar.id]));
         
-        alert(`"${livroParaSalvar.title}" salvo na biblioteca!`);
+        if (window.showNotification) {
+            window.showNotification({
+                type: 'success',
+                message: `"${livroParaSalvar.title}" salvo na biblioteca!`
+            });
+        }
     }
 
     function removerFavoritoGoogle(id) {
-        const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-        removeFavoritoGoogle(usuario.email, id);
-        setFavoritosGoogle(getFavoritosGoogle(usuario.email));
+        try {
+            const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+            removeFavoritoGoogle(usuario.email, id);
+            setFavoritosGoogle(getFavoritosGoogle(usuario.email));
+            
+            if (window.showNotification) {
+                window.showNotification({
+                    type: 'success',
+                    message: 'Livro removido dos favoritos!'
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao remover favorito do Google:', error);
+            if (window.showNotification) {
+                window.showNotification({
+                    type: 'error',
+                    message: 'Erro ao remover favorito. Tente novamente.'
+                });
+            }
+        }
     }
 
     return (

@@ -1,4 +1,5 @@
 import styled from 'styled-components'
+import { media } from '../../styles/breakpoints';
 
 const Card = styled.div`
     border: 1px solid #eee;
@@ -39,6 +40,21 @@ const Card = styled.div`
             text-decoration: underline;
         }
     }
+    
+    ${media.tablet} {
+        width: 220px;
+        padding: 10px;
+    }
+    
+    ${media.mobile} {
+        width: 100%;
+        max-width: 280px;
+        padding: 16px;
+        
+        &:hover {
+            transform: translateY(-2px);
+        }
+    }
 `;
 
 const Titulo = styled.h3`
@@ -61,6 +77,20 @@ const Botao = styled.button`
 
     &:hover {
         background-color: darken(#007bff, 10%);
+    }
+    
+    ${media.tablet} {
+        margin-left: 50px;
+        padding: 8px 10px;
+        font-size: 0.9em;
+    }
+    
+    ${media.mobile} {
+        margin-left: auto;
+        margin-right: auto;
+        padding: 12px 16px;
+        font-size: 1em;
+        justify-content: center;
     }
 `;
 

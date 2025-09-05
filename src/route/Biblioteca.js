@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { getLivros } from '../services/livros';
-import { getFavoritos } from '../services/favoritos';
-import { addFavoritoGoogle } from '../services/favoritosGoogle';
-import { adicionarLivroLido } from '../services/livrosLidos';
+import { getFavoritos, postFavorito } from '../services/favoritos';
+import { addFavoritoGoogle, getFavoritosGoogle } from '../services/favoritosGoogle';
+import { buscarLivrosLidos, removerLivroLido, adicionarLivroLido } from '../services/livrosLidos';
 
 const Container = styled.div`
   width: 100vw;
@@ -33,6 +33,26 @@ const SessaoTitulo = styled.h2`
   margin-bottom: 18px;
 `;
 
+const BadgeLido = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7em;
+  font-weight: bold;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`;
+
 const LivrosGrid = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -49,6 +69,24 @@ const LivroCard = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+`;
+
+const BadgeFavorito = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  background: #ff6b6b;
+  color: #fff;
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 0.75em;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 2px;
 `;
 
 const LivroImg = styled.img`
@@ -105,10 +143,47 @@ const AcoesContainer = styled.div`
 function Biblioteca() {
   const [bibliotecaLivros, setBibliotecaLivros] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [favoritosLocais, setFavoritosLocais] = useState(new Set());
+  const [favoritosGoogle, setFavoritosGoogle] = useState(new Set());
+  const [livrosJaLidos, setLivrosJaLidos] = useState(new Set());
 
   useEffect(() => {
     carregarBiblioteca();
+    carregarFavoritos();
+    carregarLivrosLidos();
   }, []);
+
+  const carregarLivrosLidos = async () => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+      try {
+        const livrosLidosData = await buscarLivrosLidos(usuario.email);
+        const idsLivrosLidos = new Set(livrosLidosData.map(livro => livro.id));
+        setLivrosJaLidos(idsLivrosLidos);
+      } catch (error) {
+        console.error('Erro ao carregar livros lidos:', error);
+      }
+    }
+  };
+
+  const carregarFavoritos = async () => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+      try {
+        // Carregar favoritos locais
+        const favoritosLocaisData = await getFavoritos(usuario.email);
+        const idsFavoritosLocais = new Set(favoritosLocaisData.map(fav => fav.id));
+        setFavoritosLocais(idsFavoritosLocais);
+
+        // Carregar favoritos do Google
+        const favoritosGoogleData = getFavoritosGoogle(usuario.email);
+        const idsFavoritosGoogle = new Set(favoritosGoogleData.map(fav => fav.id));
+        setFavoritosGoogle(idsFavoritosGoogle);
+      } catch (error) {
+        console.error('Erro ao carregar favoritos:', error);
+      }
+    }
+  };
 
   const carregarBiblioteca = () => {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
@@ -122,6 +197,27 @@ function Biblioteca() {
 
   const marcarComoLido = async (livro) => {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    
+    // Verifica se o livro já está marcado como lido no backend
+    if (livrosJaLidos.has(livro.id)) {
+      // Se já está lido no backend, apenas sincroniza a biblioteca local
+      const bibliotecaKey = `biblioteca_${usuario.email}`;
+      const biblioteca = JSON.parse(localStorage.getItem(bibliotecaKey)) || [];
+      const bibliotecaAtualizada = biblioteca.map(l => 
+        l.id === livro.id ? { ...l, lido: true } : l
+      );
+      localStorage.setItem(bibliotecaKey, JSON.stringify(bibliotecaAtualizada));
+      setBibliotecaLivros(bibliotecaAtualizada);
+      
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: `Status sincronizado! "${livro.title}" já estava marcado como lido.`
+        });
+      }
+      return;
+    }
+    
     const livroLido = {
       id: livro.id,
       title: livro.title,
@@ -132,7 +228,11 @@ function Biblioteca() {
     
     try {
       await adicionarLivroLido(livroLido);
-      // Atualiza o status do livro na biblioteca
+      
+      // Atualiza o estado dos livros já lidos
+      setLivrosJaLidos(prev => new Set([...prev, livro.id]));
+      
+      // Atualiza o status do livro na biblioteca local
       const bibliotecaKey = `biblioteca_${usuario.email}`;
       const biblioteca = JSON.parse(localStorage.getItem(bibliotecaKey)) || [];
       const bibliotecaAtualizada = biblioteca.map(l => 
@@ -140,33 +240,102 @@ function Biblioteca() {
       );
       localStorage.setItem(bibliotecaKey, JSON.stringify(bibliotecaAtualizada));
       setBibliotecaLivros(bibliotecaAtualizada);
-      alert(`"${livro.title}" marcado como lido!`);
+      
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: `"${livro.title}" marcado como lido!`
+        });
+      }
     } catch (error) {
       if (error.message === 'Este livro já está marcado como lido!') {
-        alert('Este livro já está marcado como lido!');
+        // Se recebeu erro do backend mas não estava no estado local, sincroniza
+        setLivrosJaLidos(prev => new Set([...prev, livro.id]));
+        
+        const bibliotecaKey = `biblioteca_${usuario.email}`;
+        const biblioteca = JSON.parse(localStorage.getItem(bibliotecaKey)) || [];
+        const bibliotecaAtualizada = biblioteca.map(l => 
+          l.id === livro.id ? { ...l, lido: true } : l
+        );
+        localStorage.setItem(bibliotecaKey, JSON.stringify(bibliotecaAtualizada));
+        setBibliotecaLivros(bibliotecaAtualizada);
+        
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'success',
+            message: `Status sincronizado! "${livro.title}" já estava marcado como lido.`
+          });
+        }
       } else {
-        alert('Erro ao marcar livro como lido. Tente novamente.');
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'error',
+            message: 'Erro ao marcar livro como lido. Tente novamente.'
+          });
+        }
         console.error('Erro:', error);
       }
     }
   };
 
-  const favoritarLivro = (livro) => {
+  const favoritarLivro = async (livro) => {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-    const livroFavorito = {
-      id: livro.id,
-      title: livro.title,
-      authors: livro.authors,
-      thumbnail: livro.thumbnail,
-      usuario: usuario.email
-    };
+    
+    // Verifica se já está favoritado
+    if (favoritosLocais.has(livro.id) || favoritosGoogle.has(livro.id)) {
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'warning',
+          message: 'Este livro já está nos seus favoritos!'
+        });
+      }
+      return;
+    }
     
     try {
-      addFavoritoGoogle(usuario.email, livroFavorito);
-      alert(`"${livro.title}" adicionado aos favoritos!`);
+      // Tenta primeiro adicionar aos favoritos locais
+      await postFavorito(usuario.email, livro.id);
+      
+      // Atualiza o estado local
+      setFavoritosLocais(prev => new Set([...prev, livro.id]));
+      
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: `"${livro.title}" adicionado aos favoritos!`
+        });
+      }
     } catch (error) {
-      alert('Erro ao adicionar favorito. Tente novamente.');
-      console.error('Erro:', error);
+      // Se falhar nos favoritos locais, tenta nos favoritos do Google
+      try {
+        const livroFavorito = {
+          id: livro.id,
+          title: livro.title,
+          authors: livro.authors,
+          thumbnail: livro.thumbnail,
+          usuario: usuario.email
+        };
+        
+        addFavoritoGoogle(usuario.email, livroFavorito);
+        
+        // Atualiza o estado local
+        setFavoritosGoogle(prev => new Set([...prev, livro.id]));
+        
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'success',
+            message: `"${livro.title}" adicionado aos favoritos!`
+          });
+        }
+      } catch (googleError) {
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'error',
+            message: 'Erro ao adicionar favorito. Tente novamente.'
+          });
+        }
+        console.error('Erro:', googleError);
+      }
     }
   };
 
@@ -177,6 +346,44 @@ function Biblioteca() {
     const bibliotecaAtualizada = biblioteca.filter(l => l.id !== livroId);
     localStorage.setItem(bibliotecaKey, JSON.stringify(bibliotecaAtualizada));
     setBibliotecaLivros(bibliotecaAtualizada);
+  };
+
+  const removerDosLivrosLidos = async (livro) => {
+    try {
+      const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+      
+      // Remove do backend
+      await removerLivroLido(livro.id, usuario.email);
+      
+      // Remove do localStorage também
+      const bibliotecaKey = `biblioteca_${usuario.email}`;
+      const biblioteca = JSON.parse(localStorage.getItem(bibliotecaKey)) || [];
+      const bibliotecaAtualizada = biblioteca.filter(l => l.id !== livro.id);
+      localStorage.setItem(bibliotecaKey, JSON.stringify(bibliotecaAtualizada));
+      setBibliotecaLivros(bibliotecaAtualizada);
+      
+      // Atualiza a lista de livros já lidos
+      setLivrosJaLidos(prev => {
+        const novoSet = new Set(prev);
+        novoSet.delete(livro.id);
+        return novoSet;
+      });
+      
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'success',
+          message: 'Livro removido da lista de lidos!'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao remover livro dos lidos:', error);
+      if (window.showNotification) {
+        window.showNotification({
+          type: 'error',
+          message: 'Erro ao remover livro dos lidos. Tente novamente.'
+        });
+      }
+    }
   };
 
   const livrosNaoLidos = bibliotecaLivros.filter(livro => !livro.lido);
@@ -194,48 +401,95 @@ function Biblioteca() {
         <SessaoTitulo>Livros não lidos ({livrosNaoLidos.length})</SessaoTitulo>
         <LivrosGrid>
           {livrosNaoLidos.length === 0 && <p>Nenhum livro não lido na biblioteca.</p>}
-          {livrosNaoLidos.map(livro => (
-            <LivroCard key={livro.id}>
-              {livro.thumbnail && <LivroImg src={livro.thumbnail} alt={livro.title} />}
-              <LivroNome>{livro.title}</LivroNome>
-              <p style={{ fontSize: '0.9em', color: '#666', textAlign: 'center', margin: '4px 0' }}>
-                {livro.authors?.join(', ') || 'Autor não informado'}
-              </p>
-              <AcoesContainer>
-                <BotaoAcao className="lido" onClick={() => marcarComoLido(livro)}>
-                  ✓ Marcar como lido
-                </BotaoAcao>
-                <BotaoAcao className="favorito" onClick={() => favoritarLivro(livro)}>
-                  ❤️ Favoritar
-                </BotaoAcao>
-                <BotaoAcao className="remover" onClick={() => removerDaBiblioteca(livro.id)}>
-                  🗑️ Remover
-                </BotaoAcao>
-              </AcoesContainer>
-            </LivroCard>
-          ))}
+          {livrosNaoLidos.map(livro => {
+            const jaFavoritado = favoritosLocais.has(livro.id) || favoritosGoogle.has(livro.id);
+            const jaLidoNoBackend = livrosJaLidos.has(livro.id);
+            return (
+              <LivroCard key={livro.id}>
+                {jaFavoritado && (
+                  <BadgeFavorito title="Livro já está nos favoritos">
+                    ❤️ Favoritado
+                  </BadgeFavorito>
+                )}
+                {jaLidoNoBackend && (
+                  <BadgeLido title="Livro já está marcado como lido - clique para sincronizar">
+                    ✓ Lido
+                  </BadgeLido>
+                )}
+                {livro.thumbnail && <LivroImg src={livro.thumbnail} alt={livro.title} />}
+                <LivroNome>{livro.title}</LivroNome>
+                <p style={{ fontSize: '0.9em', color: '#666', textAlign: 'center', margin: '4px 0' }}>
+                  {livro.authors?.join(', ') || 'Autor não informado'}
+                </p>
+                <AcoesContainer>
+                  <BotaoAcao 
+                    className="lido" 
+                    onClick={() => marcarComoLido(livro)}
+                    style={{
+                      background: jaLidoNoBackend ? '#4CAF50' : '#4CAF50',
+                      opacity: jaLidoNoBackend ? 0.8 : 1
+                    }}
+                  >
+                    {jaLidoNoBackend ? '↻ Sincronizar' : '✓ Marcar como lido'}
+                  </BotaoAcao>
+                  <BotaoAcao 
+                    className="favorito" 
+                    onClick={() => !jaFavoritado && favoritarLivro(livro)}
+                    style={{ 
+                      background: jaFavoritado ? '#9E9E9E' : '#1cd6ae',
+                      cursor: jaFavoritado ? 'not-allowed' : 'pointer',
+                      opacity: jaFavoritado ? 0.7 : 1
+                    }}
+                    disabled={jaFavoritado}
+                  >
+                    {jaFavoritado ? '❤️ Favoritado' : '❤️ Favoritar'}
+                  </BotaoAcao>
+                  <BotaoAcao className="remover" onClick={() => removerDaBiblioteca(livro.id)}>
+                    🗑️ Remover
+                  </BotaoAcao>
+                </AcoesContainer>
+              </LivroCard>
+            );
+          })}
         </LivrosGrid>
         
         <SessaoTitulo>Livros lidos ({livrosLidos.length})</SessaoTitulo>
         <LivrosGrid>
           {livrosLidos.length === 0 && <p>Nenhum livro lido ainda.</p>}
-          {livrosLidos.map(livro => (
-            <LivroCard key={livro.id}>
-              {livro.thumbnail && <LivroImg src={livro.thumbnail} alt={livro.title} />}
-              <LivroNome>{livro.title}</LivroNome>
-              <p style={{ fontSize: '0.9em', color: '#666', textAlign: 'center', margin: '4px 0' }}>
-                {livro.authors?.join(', ') || 'Autor não informado'}
-              </p>
-              <AcoesContainer>
-                <BotaoAcao className="favorito" onClick={() => favoritarLivro(livro)}>
-                  ❤️ Favoritar
-                </BotaoAcao>
-                <BotaoAcao className="remover" onClick={() => removerDaBiblioteca(livro.id)}>
-                  🗑️ Remover
-                </BotaoAcao>
-              </AcoesContainer>
-            </LivroCard>
-          ))}
+          {livrosLidos.map(livro => {
+            const jaFavoritado = favoritosLocais.has(livro.id) || favoritosGoogle.has(livro.id);
+            return (
+              <LivroCard key={livro.id}>
+                {jaFavoritado && (
+                  <BadgeFavorito title="Livro já está nos favoritos">
+                    ❤️ Favoritado
+                  </BadgeFavorito>
+                )}
+                {livro.thumbnail && <LivroImg src={livro.thumbnail} alt={livro.title} />}
+                <LivroNome>{livro.title}</LivroNome>
+                <p style={{ fontSize: '0.9em', color: '#666', textAlign: 'center', margin: '4px 0' }}>
+                  {livro.authors?.join(', ') || 'Autor não informado'}
+                </p>
+                <AcoesContainer>
+                  <BotaoAcao 
+                    className="favorito" 
+                    onClick={() => !jaFavoritado && favoritarLivro(livro)}
+                    style={{ 
+                      background: jaFavoritado ? '#9E9E9E' : '#1cd6ae',
+                      cursor: jaFavoritado ? 'not-allowed' : 'pointer',
+                      opacity: jaFavoritado ? 0.7 : 1
+                    }}
+                    disabled={jaFavoritado}
+                  >
+                    {jaFavoritado ? '❤️ Favoritado' : '❤️ Favoritar'}
+                  </BotaoAcao>
+                  <BotaoAcao className="remover" onClick={() => removerDosLivrosLidos(livro)}>
+                    🗑️ Remover dos lidos
+                  </BotaoAcao>
+                </AcoesContainer>
+              </LivroCard>
+            );
+          })}
         </LivrosGrid>
       </Dashboard>
     </Container>

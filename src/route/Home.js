@@ -5,6 +5,7 @@ import FeedPostagens from '../componentes/FeedPostagens';
 import ListaUsuarios from '../componentes/ListaUsuarios';
 import { useEffect, useState } from 'react';
 import CardLivro from '../componentes/CardLivro';
+import { media } from '../styles/breakpoints';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -14,12 +15,22 @@ const AppContainer = styled.div`
   flex-direction: column;
   align-items: center;
   padding-top: 40px;
+  
+  ${media.tablet} {
+    padding-top: 30px;
+  }
+  
+  ${media.mobile} {
+    padding-top: 20px;
+    padding-left: 0;
+    padding-right: 0;
+  }
 `;
 
 const Dashboard = styled.div`
   width: 100%;
   max-width: 1100px;
-  background: #f7f9fb; // cor clara, suave e contrastante
+  background: #f7f9fb;
   border-radius: 18px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.13);
   padding: 48px 40px 40px 40px;
@@ -27,6 +38,21 @@ const Dashboard = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 36px;
+  
+  ${media.tablet} {
+    max-width: 95%;
+    padding: 36px 24px 30px 24px;
+    gap: 24px;
+    border-radius: 14px;
+  }
+  
+  ${media.mobile} {
+    max-width: 100%;
+    padding: 24px 16px 20px 16px;
+    gap: 20px;
+    border-radius: 0;
+    margin: 0;
+  }
 `;
 
 const Saudacao = styled.h2`
@@ -36,20 +62,37 @@ const Saudacao = styled.h2`
   margin-bottom: 0;
   text-align: center;
   letter-spacing: 1px;
+  
+  ${media.tablet} {
+    font-size: 1.8em;
+  }
+  
+  ${media.mobile} {
+    font-size: 1.5em;
+    letter-spacing: 0.5px;
+  }
 `;
-
 
 const DestaqueSection = styled.section`
   color: #326589;
   width: 100%;
   margin-top: 24px;
+  
+  ${media.mobile} {
+    margin-top: 16px;
+  }
 `;
 
 const DestaqueTitulo = styled.h3`
   color: #002F52;
   font-size: 1.3em;
-  margin-bottom: 18px;
-  font-weight: bold;
+  margin-bottom: 16px;
+  text-align: center;
+  
+  ${media.mobile} {
+    font-size: 1.2em;
+    margin-bottom: 12px;
+  }
 `;
 
 const LivrosGrid = styled.div`
@@ -58,6 +101,17 @@ const LivrosGrid = styled.div`
   gap: 24px;
   flex-wrap: wrap;
   justify-content: flex-start;
+  
+  ${media.tablet} {
+    gap: 20px;
+    justify-content: center;
+  }
+  
+  ${media.mobile} {
+    gap: 16px;
+    flex-direction: column;
+    align-items: center;
+  }
 `;
 
 const NomeDourado = styled.span`
